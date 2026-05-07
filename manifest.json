@@ -1,0 +1,23 @@
+{
+    "name": "Kartenspiel Punktezähler",
+    "short_name": "Kartenspiel",
+    "description": "Punktezähler für Kartenspiele – bis zu 8 Spieler",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#1a1a2e",
+    "theme_color": "#1a1a2e",
+    "lang": "de",
+    "icons": [
+        {
+            "src": "https://via.placeholder.com/192x192/e94560/ffffff?text=🃏",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "https://via.placeholder.com/512x512/e94560/ffffff?text=🃏",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}
