@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Punktezähler">
+    <title>Punktezähler</title>
+    <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 15px;
+            background: #f2f2f7;
+            touch-action: manipulation;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        h1 { 
+            text-align: center; 
+            color: #1c1c1e; 
+            margin: 0 0 20px 0;
+            font-size: 28px;
+        }
+        
+        .target-box {
+            background: #007AFF;
+            color: white;
+            padding: 15px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .target-box label {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 5px;
+            opacity: 0.9;
+        }
+        .target-box input {
+            font-size: 24px;
+            font-weight: bold;
+            width: 100px;
+            text-align: center;
+            border: none;
+            border-radius: 10px;
+            padding: 8px;
+            color: #007AFF;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        input[type="text"], input[type="number"] {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e5e5ea;
+            border-radius: 12px;
+            font-size: 17px;
+            -webkit-appearance: none;
+            outline: none;
+        }
+        input[type="text"]:focus {
+            border-color: #007AFF;
+        }
+        
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            border-radius: 12px;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        button:active { opacity: 0.7; }
+        button.secondary { background: #8e8e93; }
+        button.success { background: #34c759; }
+        button.danger { background: #ff3b30; padding: 8px 12px; font-size: 14px; }
+        
+        .sort-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            justify-content: center;
+        }
+        .sort-bar button {
+            padding: 10px 15px;
+            font-size: 14px;
+        }
+        
+        .player-list { list-style: none; padding: 0; margin: 0; }
+        .player-card {
+            background: white;
+            border: 2px solid #e5e5ea;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+        }
+        .player-card.winner {
+            background: #d4f8d4;
+            border-color: #34c759;
+            animation: winnerPulse 2s infinite;
+        }
+        @keyframes winnerPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(52, 199, 89, 0); }
+        }
+        
+        .rank {
+            font-size: 22px;
+            font-weight: bold;
+            color: #007AFF;
+            min-width: 35px;
+            text-align: center;
+        }
+        .player-info {
+            flex: 1;
+        }
+        .player-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1c1c1e;
+            margin-bottom: 4px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+        }
+        .player-name:active { background: #f2f2f7; }
+        
+        .score-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .score-display {
+            font-size: 28px;
+            font-weight: bold;
+            color: #1c1c1e;
+            min-width: 50px;
+            text-align: center;
+        }
+        .score-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .winner-badge {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+            padding: 30px;
+        }
+        .winner-badge.show { display: flex; }
+        .winner-badge h2 {
+            font-size: 36px;
+            margin-bottom: 10px;
+            color: #FFD700;
+        }
+        .winner-badge .name {
+            font-size: 28px;
+            margin-bottom: 40px;
+            font-weight: 600;
+        }
+        .hidden { display: none !important; }
+        
+        .empty-state {
+            text-align: center;
+            color: #8e8e93;
+            padding: 40px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏆 Punktezähler</h1>
+        
+        <div class="target-box">
+            <label>Zielpunktzahl</label>
+            <input type="number" id="targetScore" value="100" min="1" onchange="saveGame()">
+        </div>
+        
+        <div class="input-group">
+            <input type="text" id="newPlayerName" placeholder="Neuer Spieler..." maxlength="20">
+            <button onclick="addPlayer()">+</button>
+        </div>
+        
+        <div class="sort-bar">
+            <button class="secondary" onclick="sortBy('score')">↓ Punkte</button>
+            <button class="secondary" onclick="sortBy('name')">A-Z Name</button>
+            <button class="secondary" onclick="sortBy('scoreUp')">↑ Punkte</button>
+        </div>
+        
+        <ul class="player-list" id="playerList">
+            <li class="empty-state">Tippe auf + um Spieler hinzuzufügen</li>
+        </ul>
+    </div>
+    
+    <div class="winner-badge" id="winnerModal">
+        <h2>🎉 GEWONNEN! 🎉</h2>
+        <div class="name" id="winnerName"></div>
+        <button onclick="newGame()" style="font-size: 20px; padding: 20px 40px;">Neues Spiel</button>
+        <button onclick="closeModal()" class="secondary" style="margin-top: 10px; background: transparent; border: 2px solid white;">Schließen</button>
+    </div>
+
+    <script>
+        let players = [];
+        let gameEnded = false;
+        
+        // Beim Start laden
+        window.onload = function() {
+            const saved = localStorage.getItem('punkteSpiel');
+            if (saved) {
+                const data = JSON.parse(saved);
+                players = data.players || [];
+                document.getElementById('targetScore').value = data.target || 100;
+                gameEnded = data.ended || false;
+                render();
+            }
+        };
+        
+        function saveGame() {
+            localStorage.setItem('punkteSpiel', JSON.stringify({
+                players: players,
+                target: document.getElementById('targetScore').value,
+                ended: gameEnded
+            }));
+        }
+        
+        function addPlayer() {
+            if (gameEnded) return;
+            const input = document.getElementById('newPlayerName');
+            const name = input.value.trim();
+            if (!name) return;
+            
+            players.push({
+                id: Date.now(),
+                name: name,
+                score: 0
+            });
+            input.value = '';
+            saveGame();
+            render();
+        }
+        
+        // Enter-Taste im Namensfeld
+        document.getElementById('newPlayerName').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') addPlayer();
+        });
+        
+        function changeScore(id, delta) {
+            if (gameEnded) return;
+            const player = players.find(p => p.id === id);
+            if (!player) return;
+            
+            player.score += delta;
+            if (player.score < 0) player.score = 0;
+            
+            // Gewinn prüfen
+            const target = parseInt(document.getElementById('targetScore').value) || 100;
+            if (player.score >= target && !gameEnded) {
+                gameEnded = true;
+                saveGame();
+                showWinner(player);
+            }
+            
+            saveGame();
+            render();
+        }
+        
+        function editName(id, spanElement) {
+            if (gameEnded) return;
+            const player = players.find(p => p.id === id);
+            if (!player) return;
+            
+            const newName = prompt("Neuer Name:", player.name);
+            if (newName && newName.trim()) {
+                player.name = newName.trim();
+                saveGame();
+                render();
+            }
+        }
+        
+        function deletePlayer(id) {
+            if (!confirm('Spieler wirklich löschen?')) return;
+            players = players.filter(p => p.id !== id);
+            saveGame();
+            render();
+        }
+        
+        function sortBy(criteria) {
+            if (criteria === 'score') {
+                players.sort((a, b) => b.score - a.score);
+            } else if (criteria === 'scoreUp') {
+                players.sort((a, b) => a.score - b.score);
+            } else if (criteria === 'name') {
+                players.sort((a, b) => a.name.localeCompare(b.name));
+            }
+            render();
+        }
+        
+        function showWinner(player) {
+            document.getElementById('winnerName').textContent = player.name;
+            document.getElementById('winnerModal').classList.add('show');
+        }
+        
+        function closeModal() {
+            document.getElementById('winnerModal').classList.remove('show');
+        }
+        
+        function newGame() {
+            if (confirm('Alle Punkte zurücksetzen? Namen bleiben erhalten.')) {
+                players.forEach(p => p.score = 0);
+                gameEnded = false;
+                saveGame();
+                render();
+                closeModal();
+            }
+        }
+        
+        function render() {
+            const list = document.getElementById('playerList');
+            const target = parseInt(document.getElementById('targetScore').value) || 100;
+            
+            if (players.length === 0) {
+                list.innerHTML = '<li class="empty-state">Tippe auf + um Spieler hinzuzufügen</li>';
+                return;
+            }
+            
+            list.innerHTML = players.map((p, index) => {
+                const isWinner = p.score >= target;
+                return `
+                    <li class="player-card ${isWinner ? 'winner' : ''}">
+                        <div class="rank">${index + 1}.</div>
+                        <div class="player-info">
+                            <div class="player-name" onclick="editName(${p.id}, this)">${p.name}</div>
+                        </div>
+                        <div class="score-section">
+                            <button class="secondary score-btn" onclick="changeScore(${p.id}, -1)" ${gameEnded ? 'disabled' : ''}>−</button>
+                            <div class="score-display">${p.score}</div>
+                            <button class="success score-btn" onclick="changeScore(${p.id}, 1)" ${gameEnded ? 'disabled' : ''}>+</button>
+                            <button class="danger" onclick="deletePlayer(${p.id})" style="margin-left:8px;">🗑</button>
+                        </div>
+                    </li>
+                `;
+            }).join('');
+        }
+    </script>
+</body>
+</html>
