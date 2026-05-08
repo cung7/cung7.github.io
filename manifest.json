@@ -1,23 +1,37 @@
 {
-    "name": "Kartenspiel Punktezähler",
-    "short_name": "Kartenspiel",
-    "description": "Punktezähler für Kartenspiele – bis zu 8 Spieler",
+    "name": "UNO Punktezähler Pro",
+    "short_name": "UNO Zähler",
+    "description": "Offline-fähiger Punktezähler für UNO und Kartenspiele mit Undo-Funktion",
     "start_url": "./index.html",
     "display": "standalone",
     "orientation": "portrait",
-    "background_color": "#1a1a2e",
-    "theme_color": "#1a1a2e",
-    "lang": "de",
+    "background_color": "#1a1a1a",
+    "theme_color": "#e60012",
+    "lang": "de-CH",
+    "categories": ["games", "utilities"],
     "icons": [
         {
-            "src": "https://via.placeholder.com/192x192/e94560/ffffff?text=🃏",
+            "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48cmVjdCBmaWxsPSIjZTYwMDEyIiByeD0iMjAiIHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIi8+PHRleHQgeT0iNTAlIiB4PSI1MCUiIGR5PSIuMzVlbSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMDAiPuanCDwvL3RleHQ+PC9zdmc+",
             "sizes": "192x192",
-            "type": "image/png"
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
         },
         {
-            "src": "https://via.placeholder.com/512x512/e94560/ffffff?text=🃏",
+            "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCBmaWxsPSIjZTYwMDEyIiByeD0iNCIB4aHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCBmaWxsPSIjZTYwMDEyIiByeD0iNDAiIHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIi8+PHRleHQgeT0iNTAlIiB4PSI1MCUiIGR5PSIuMzVlbSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyODAiPuanCDwvL3RleHQ+PC9zdmc+",
             "sizes": "512x512",
-            "type": "image/png"
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
         }
-    ]
+    ],
+    "shortcuts": [
+        {
+            "name": "Neues Spiel starten",
+            "short_name": "Neu starten",
+            "description": "Alle Punkte zurücksetzen",
+            "url": "./index.html?action=newgame",
+            "icons": [{ "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Crect fill='%23444' rx='10' width='96' height='96'/%3E%3Ctext y='50%25' x='50%25' dy='.35em' text-anchor='middle' fill='white' font-size='50'%3E%F0%9F%94%84%3C/text%3E%3C/svg%3E", "sizes": "96x96" }]
+        }
+    ],
+    "screenshots": [],
+    "display_override": ["window-controls-overlay", "standalone"]
 }
