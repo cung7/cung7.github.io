@@ -2,19 +2,18 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#e60012">
+    <meta name="description" content="Offline-fähiger Punktezähler für UNO und andere Kartenspiele">
+    
     <title>UNO Punktezähler</title>
     <link rel="manifest" href="./manifest.json">
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js')
-                .then(() => console.log('SW OK'))
-                .catch(err => console.log('Fehler:', err));
-        }
-    </script>
+    
+    <!-- Favicon als Inline SVG für sofortige Verfügbarkeit -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23e60012' rx='15' width='100' height='100'/><text y='.9em' x='50%' text-anchor='middle' fill='white' font-size='70'>🃏</text></svg>">
+    
     <style>
         :root {
             --uno-red: #e60012;
@@ -23,50 +22,61 @@
             --uno-blue: #0066b3;
             --uno-black: #1a1a1a;
             --uno-dark: #111;
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
         }
-
+        
         * {
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             margin: 0;
             padding: 0;
         }
-
-        html, body {
-            width: 100%;
-            height: 100%;
+        
+        html {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background: var(--uno-black);
             color: white;
-            overflow-x: hidden;
-            touch-action: manipulation;
+            /* Verhindert Zoom auf iOS bei Input-Fokus */
+            text-size-adjust: none;
         }
-
+        
+        body {
+            min-height: 100dvh;
+            min-height: -webkit-fill-available;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* View Transition API Support */
+        @view-transition {
+            navigation: auto;
+        }
+        
         .app {
             display: flex;
             flex-direction: column;
             min-height: 100dvh;
-            padding: env(safe-area-inset-top, 10px) 12px env(safe-area-inset-bottom, 20px) 12px;
+            padding: max(var(--safe-top), 12px) 12px max(var(--safe-bottom), 20px) 12px;
         }
-
-        /* UNO HEADER */
+        
+        /* Header */
         .header {
             background: var(--uno-red);
             margin: -12px -12px 15px -12px;
-            padding: 15px 20px 20px 20px;
+            padding: 15px 20px 20px;
             text-align: center;
-            border-radius: 0 0 20px 20px;
-            box-shadow: 0 4px 15px rgba(230, 0, 18, 0.4);
+            border-radius: 0 0 24px 24px;
+            box-shadow: 0 4px 20px rgba(230, 0, 18, 0.4);
             position: relative;
             overflow: hidden;
         }
+        
         .header::before {
             content: '';
             position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
+            inset: 0;
             background: repeating-linear-gradient(
                 45deg,
                 transparent,
@@ -76,14 +86,16 @@
             );
             pointer-events: none;
         }
+        
         .header h1 {
-            font-size: 28px;
+            font-size: clamp(24px, 5vw, 32px);
             font-weight: 900;
             letter-spacing: 2px;
             text-transform: uppercase;
             text-shadow: 2px 2px 0 rgba(0,0,0,0.3);
             position: relative;
         }
+        
         .round-badge {
             position: absolute;
             right: 15px;
@@ -91,30 +103,37 @@
             transform: translateY(-50%);
             background: white;
             color: var(--uno-red);
-            padding: 5px 12px;
+            padding: 6px 14px;
             border-radius: 20px;
             font-size: 14px;
             font-weight: bold;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
-
-        /* STEUERUNG */
+        
+        /* Controls */
         .controls-top {
             display: flex;
             gap: 10px;
             margin-bottom: 15px;
             flex-wrap: wrap;
         }
+        
         .input-group {
             display: flex;
             gap: 8px;
             flex: 1;
             min-width: 200px;
             background: #222;
-            border-radius: 12px;
+            border-radius: 14px;
             padding: 8px;
             border: 2px solid #333;
+            transition: border-color 0.2s;
         }
+        
+        .input-group:focus-within {
+            border-color: var(--uno-red);
+        }
+        
         .input-group input {
             flex: 1;
             background: transparent;
@@ -123,81 +142,115 @@
             font-size: 16px;
             padding: 8px;
             outline: none;
+            /* Verhindert iOS-Zoom */
+            font-size: 16px;
         }
-        .input-group input::placeholder { color: #666; }
-        .btn-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
+        
+        .input-group input::placeholder { 
+            color: #666; 
+        }
+        
+        .btn {
             border: none;
-            font-size: 20px;
+            border-radius: 10px;
             cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.1s, opacity 0.2s;
+            touch-action: manipulation;
+        }
+        
+        .btn:active { 
+            transform: scale(0.96); 
+        }
+        
+        .btn-icon {
+            width: 44px;
+            height: 44px;
+            font-size: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
         }
-        .btn-add { background: var(--uno-green); color: white; }
+        
+        .btn-add { 
+            background: var(--uno-green); 
+            color: white; 
+        }
+        
         .btn-target {
             background: var(--uno-yellow);
             color: black;
+            padding: 0 18px;
             font-weight: bold;
-            padding: 0 15px;
-            border-radius: 8px;
-            border: none;
             font-size: 14px;
-            cursor: pointer;
-            min-width: 80px;
         }
-
-        /* SPIELER GRID */
+        
+        /* Player Grid */
         .players-container {
             flex: 1;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
             padding-bottom: 10px;
+            /* Verhindert Pull-to-Refresh auf Android */
+            overscroll-behavior-y: contain;
         }
+        
         .players-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
             gap: 12px;
         }
-
-        /* UNO KARTEN STIL */
+        
+        /* Player Cards */
         .player-card {
             background: white;
-            border-radius: 16px;
-            padding: 15px;
+            border-radius: 18px;
+            padding: 16px;
             color: black;
             position: relative;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             border: 4px solid;
-            transition: transform 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s;
+            view-transition-class: player-card;
         }
-        .player-card:active { transform: scale(0.98); }
         
-        /* Abwechselnde UNO Farben */
-        .player-card:nth-child(4n+1) { border-color: var(--uno-red); }
-        .player-card:nth-child(4n+2) { border-color: var(--uno-yellow); }
-        .player-card:nth-child(4n+3) { border-color: var(--uno-green); }
-        .player-card:nth-child(4n+4) { border-color: var(--uno-blue); }
+        .player-card:focus-within {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+        }
+        
+        /* UNO Farben Rotation */
+        .player-card[data-color="0"] { border-color: var(--uno-red); }
+        .player-card[data-color="1"] { border-color: var(--uno-yellow); }
+        .player-card[data-color="2"] { border-color: var(--uno-green); }
+        .player-card[data-color="3"] { border-color: var(--uno-blue); }
+        
+        .player-card[data-color="0"] .card-score { color: var(--uno-red); }
+        .player-card[data-color="1"] .card-score { color: #cc9900; }
+        .player-card[data-color="2"] .card-score { color: var(--uno-green); }
+        .player-card[data-color="3"] .card-score { color: var(--uno-blue); }
         
         .player-card.winner {
-            animation: unoWin 1s infinite;
+            animation: unoWin 1.5s infinite;
             border-width: 6px;
+            z-index: 10;
         }
+        
         @keyframes unoWin {
-            0%, 100% { border-color: var(--uno-red); box-shadow: 0 0 20px var(--uno-red); }
-            25% { border-color: var(--uno-yellow); box-shadow: 0 0 20px var(--uno-yellow); }
-            50% { border-color: var(--uno-green); box-shadow: 0 0 20px var(--uno-green); }
-            75% { border-color: var(--uno-blue); box-shadow: 0 0 20px var(--uno-blue); }
+            0%, 100% { border-color: var(--uno-red); box-shadow: 0 0 25px var(--uno-red); }
+            25% { border-color: var(--uno-yellow); box-shadow: 0 0 25px var(--uno-yellow); }
+            50% { border-color: var(--uno-green); box-shadow: 0 0 25px var(--uno-green); }
+            75% { border-color: var(--uno-blue); box-shadow: 0 0 25px var(--uno-blue); }
         }
-
+        
         .card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
+            gap: 8px;
         }
+        
         .card-name {
             font-size: 16px;
             font-weight: 800;
@@ -207,159 +260,224 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            border: none;
+            background: none;
+            text-align: left;
+            padding: 4px;
+            margin: -4px;
+            border-radius: 6px;
+            transition: background 0.2s;
         }
+        
+        .card-name:hover {
+            background: rgba(0,0,0,0.05);
+        }
+        
         .card-delete {
             background: none;
             border: none;
             font-size: 18px;
             cursor: pointer;
-            opacity: 0.5;
-            padding: 0;
-            width: 30px;
-            height: 30px;
+            opacity: 0.4;
+            width: 32px;
+            height: 32px;
             display: flex;
             align-items: center;
             justify-content: center;
-        }
-        .card-delete:active { opacity: 1; }
-
-        .card-score {
-            font-size: 36px;
-            font-weight: 900;
-            text-align: center;
-            margin: 10px 0;
-            font-family: 'Courier New', monospace;
+            border-radius: 8px;
+            transition: opacity 0.2s, background 0.2s;
         }
         
-        /* Farben für Score je nach Kartenfarbe */
-        .player-card:nth-child(4n+1) .card-score { color: var(--uno-red); }
-        .player-card:nth-child(4n+2) .card-score { color: #cc9900; }
-        .player-card:nth-child(4n+3) .card-score { color: var(--uno-green); }
-        .player-card:nth-child(4n+4) .card-score { color: var(--uno-blue); }
-
+        .card-delete:hover, .card-delete:focus {
+            opacity: 1;
+            background: rgba(230,0,18,0.1);
+        }
+        
+        .card-score {
+            font-size: 40px;
+            font-weight: 900;
+            text-align: center;
+            margin: 12px 0;
+            font-family: 'SF Mono', 'Courier New', monospace;
+            letter-spacing: -1px;
+        }
+        
         .card-input {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             border: 3px solid #ddd;
-            border-radius: 10px;
+            border-radius: 12px;
             text-align: center;
             font-size: 20px;
             font-weight: bold;
             color: black;
-            background: #f5f5f5;
+            background: #f8f8f8;
             outline: none;
             -webkit-appearance: none;
+            appearance: none;
+            transition: border-color 0.2s, background 0.2s;
         }
+        
         .card-input:focus {
             border-color: var(--uno-blue);
             background: white;
         }
-
-        /* ACTION BUTTONS */
+        
+        /* Entfernt Spinner bei Number Inputs */
+        .card-input::-webkit-inner-spin-button,
+        .card-input::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        
+        /* Action Bar */
         .action-bar {
             position: sticky;
             bottom: 0;
             background: rgba(17,17,17,0.95);
-            backdrop-filter: blur(10px);
-            padding: 15px 0;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 16px 0;
             margin: 0 -12px;
             border-top: 1px solid #333;
             display: flex;
             gap: 10px;
             justify-content: center;
             flex-wrap: wrap;
+            padding-bottom: max(16px, var(--safe-bottom));
         }
+        
         .btn-uno {
-            padding: 15px 30px;
+            padding: 16px 24px;
             border-radius: 50px;
-            border: none;
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 900;
             text-transform: uppercase;
-            cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
+        
         .btn-save { background: var(--uno-red); color: white; }
         .btn-undo { background: var(--uno-yellow); color: black; }
         .btn-hist { background: var(--uno-blue); color: white; }
         .btn-new { background: #444; color: white; }
-
-        /* MODALS */
-        .modal {
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        /* Modals */
+        .modal-overlay {
             display: none;
             position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0,0,0,0.95);
+            inset: 0;
+            background: rgba(0,0,0,0.9);
             z-index: 100;
             padding: 20px;
             overflow-y: auto;
+            backdrop-filter: blur(5px);
         }
-        .modal.show { display: block; }
+        
+        .modal-overlay.active { 
+            display: flex; 
+            align-items: center;
+            justify-content: center;
+        }
+        
         .modal-content {
             background: white;
             color: black;
-            border-radius: 20px;
-            padding: 20px;
+            border-radius: 24px;
+            padding: 24px;
+            width: 100%;
             max-width: 500px;
-            margin: 20px auto;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: modalSlide 0.3s ease-out;
         }
+        
+        @keyframes modalSlide {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
         .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
             border-bottom: 3px solid var(--uno-red);
-            padding-bottom: 10px;
+            padding-bottom: 12px;
         }
+        
         .modal-title {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 900;
             color: var(--uno-red);
             text-transform: uppercase;
         }
+        
         .btn-close {
-            width: 40px; height: 40px;
+            width: 40px; 
+            height: 40px;
             border-radius: 50%;
             border: none;
             background: var(--uno-red);
             color: white;
             font-size: 20px;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
         }
-
-        /* TABELLE */
+        
+        .btn-close:hover { transform: rotate(90deg); }
+        
+        /* History Table */
         .hist-table {
             width: 100%;
             border-collapse: separate;
             border-spacing: 4px;
             font-size: 14px;
         }
+        
         .hist-table th {
             background: var(--uno-red);
             color: white;
             padding: 10px;
             border-radius: 8px;
+            font-weight: 800;
+            position: sticky;
+            top: 0;
+            z-index: 1;
         }
+        
         .hist-table td {
-            background: #f0f0f0;
+            background: #f5f5f5;
             padding: 8px;
             text-align: center;
             border-radius: 6px;
             font-weight: 600;
         }
+        
         .hist-table .sum td {
             background: var(--uno-black);
             color: white;
             font-weight: 900;
+            font-size: 16px;
         }
-
+        
+        .hist-table .positive { color: #00a651; }
+        .hist-table .negative { color: #e60012; }
+        
+        /* Winner Modal */
         .winner-modal {
             display: none;
             position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
+            inset: 0;
             background: var(--uno-red);
             z-index: 200;
             flex-direction: column;
@@ -367,293 +485,741 @@
             align-items: center;
             text-align: center;
             padding: 30px;
+            animation: winnerBg 3s infinite alternate;
         }
-        .winner-modal.show { display: flex; }
+        
+        .winner-modal.active { display: flex; }
+        
+        @keyframes winnerBg {
+            from { background: var(--uno-red); }
+            to { background: #ff0033; }
+        }
+        
         .winner-uno {
-            font-size: 60px;
+            font-size: clamp(48px, 10vw, 80px);
             font-weight: 900;
             color: white;
-            text-shadow: 3px 3px 0 rgba(0,0,0,0.3);
+            text-shadow: 4px 4px 0 rgba(0,0,0,0.3);
             margin-bottom: 20px;
             transform: rotate(-5deg);
+            animation: bounce 1s infinite;
         }
+        
+        @keyframes bounce {
+            0%, 100% { transform: rotate(-5deg) translateY(0); }
+            50% { transform: rotate(-5deg) translateY(-10px); }
+        }
+        
         .winner-text {
-            font-size: 48px;
+            font-size: clamp(32px, 6vw, 48px);
             font-weight: 900;
             color: var(--uno-yellow);
             text-transform: uppercase;
             margin-bottom: 10px;
             text-shadow: 2px 2px 0 rgba(0,0,0,0.5);
         }
+        
         .winner-name {
-            font-size: 36px;
+            font-size: clamp(24px, 5vw, 36px);
             color: white;
             font-weight: bold;
             margin-bottom: 40px;
+            word-break: break-word;
+            max-width: 100%;
         }
-
-        .empty {
+        
+        .empty-state {
             text-align: center;
             color: #666;
-            padding: 40px;
+            padding: 60px 20px;
             grid-column: 1 / -1;
+            font-size: 18px;
+        }
+        
+        /* Confirm Dialog */
+        .confirm-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        
+        .btn-secondary {
+            background: #eee;
+            color: #333;
+            padding: 12px 24px;
+            border-radius: 10px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .btn-primary {
+            background: var(--uno-red);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 10px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        /* Utilities */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
+        }
+        
+        @media (max-width: 380px) {
+            .players-grid {
+                grid-template-columns: 1fr;
+            }
+            .btn-uno {
+                padding: 14px 18px;
+                font-size: 14px;
+            }
+        }
+        
+        @media (prefers-reduced-motion: reduce) {
+            * { animation: none !important; transition: none !important; }
         }
     </style>
 </head>
 <body>
-<div class="app">
-
-    <div class="header">
-        <h1>🃏 UNO ZÄHLER</h1>
-        <div class="round-badge">Runde <span id="cRound">1</span></div>
-    </div>
-
-    <div class="controls-top">
-        <div class="input-group">
-            <input type="text" id="pName" placeholder="Spielername..." maxlength="15" enterkeyhint="done">
-            <button class="btn-icon btn-add" onclick="addPlayer()">➕</button>
-        </div>
-        <button class="btn-target" onclick="setTarget()">🎯 Ziel</button>
-    </div>
-
-    <div class="players-container">
-        <div class="players-grid" id="playersGrid">
-            <div class="empty">Füge Spieler mit ➕ hinzu</div>
-        </div>
-    </div>
-
-    <div class="action-bar">
-        <button class="btn-uno btn-save" onclick="saveRound()">💾 Runde Speichern</button>
-        <button class="btn-uno btn-undo" onclick="undoRound()" id="undoBtn" style="display:none;">↩ Undo</button>
-        <button class="btn-uno btn-hist" onclick="showHistory()" id="histBtn" style="display:none;">📊 Verlauf</button>
-        <button class="btn-uno btn-new" onclick="newGame()">🔄 Neu</button>
-    </div>
-
-</div>
-
-<!-- History Modal -->
-<div class="modal" id="histModal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <div class="modal-title">📊 Rundenübersicht</div>
-            <button class="btn-close" onclick="closeHistory()">✕</button>
-        </div>
-        <div id="histTable"></div>
-    </div>
-</div>
-
-<!-- Winner Modal -->
-<div class="winner-modal" id="winModal">
-    <div class="winner-uno">UNO!</div>
-    <div class="winner-text">Gewinner!</div>
-    <div class="winner-name" id="winName"></div>
-    <button class="btn-uno btn-save" onclick="newGame()" style="font-size:20px;">Neues Spiel</button>
-    <button onclick="closeWinner()" style="margin-top:15px;background:none;border:2px solid white;color:white;padding:10px 30px;border-radius:30px;font-size:16px;cursor:pointer;">Weiterspielen</button>
-</div>
-
-<script>
-    let players = [];
-    let currentRound = 1;
-    let targetScore = 500; // UNO Standard
-    let undoStack = [];
-
-    window.onload = () => {
-        const s = localStorage.getItem('unoGame');
-        if (s) {
-            const d = JSON.parse(s);
-            players = d.players || [];
-            currentRound = d.currentRound || 1;
-            targetScore = d.target || 500;
-            undoStack = d.undoStack || [];
-            updateUI();
-        }
-    };
-
-    function saveData() {
-        localStorage.setItem('unoGame', JSON.stringify({
-            players, currentRound, targetScore, undoStack
-        }));
-    }
-
-    function addPlayer() {
-        const inp = document.getElementById('pName');
-        const name = inp.value.trim();
-        if (!name) return;
+    <div class="app">
+        <header class="header">
+            <h1>🃏 UNO ZÄHLER</h1>
+            <div class="round-badge">Runde <span id="cRound">1</span></div>
+        </header>
         
-        players.push({
-            id: Date.now(),
-            name: name,
-            rounds: [],
-            total: 0
-        });
-        
-        inp.value = '';
-        inp.focus();
-        saveData();
-        updateUI();
-    }
-
-    document.getElementById('pName').addEventListener('keypress', e => {
-        if (e.key === 'Enter') addPlayer();
-    });
-
-    function setTarget() {
-        const t = prompt('Zielpunktzahl (Standard UNO: 500):', targetScore);
-        if (t && !isNaN(t)) {
-            targetScore = parseInt(t);
-            saveData();
-            alert('Ziel: ' + targetScore + ' Punkte');
-        }
-    }
-
-    function saveRound() {
-        const inputs = document.querySelectorAll('.p-input');
-        const snapshot = [];
-        let hasValue = false;
-
-        inputs.forEach((inp, idx) => {
-            const val = inp.value.trim();
-            const pts = val === '' ? 0 : parseInt(val);
-            if (val !== '') hasValue = true;
-            snapshot.push({ 
-                id: players[idx].id, 
-                pts, 
-                prev: players[idx].total 
-            });
-        });
-
-        if (!hasValue) {
-            alert('Bitte mindestens einen Wert eingeben');
-            return;
-        }
-
-        undoStack.push({ round: currentRound, data: snapshot });
-        
-        snapshot.forEach((item, idx) => {
-            players[idx].rounds.push(item.pts);
-            players[idx].total += item.pts;
-        });
-
-        currentRound++;
-        saveData();
-        updateUI();
-
-        // Gewinner prüfen
-        const winner = players.find(p => p.total >= targetScore);
-        if (winner) {
-            document.getElementById('winName').textContent = winner.name;
-            document.getElementById('winModal').classList.add('show');
-        }
-    }
-
-    function undoRound() {
-        if (!undoStack.length) return;
-        const last = undoStack.pop();
-        currentRound = last.round;
-        
-        last.data.forEach(item => {
-            const p = players.find(x => x.id === item.id);
-            if (p) {
-                p.rounds.pop();
-                p.total = item.prev;
-            }
-        });
-        
-        saveData();
-        updateUI();
-        document.getElementById('winModal').classList.remove('show');
-    }
-
-    function editName(id) {
-        const p = players.find(x => x.id === id);
-        const n = prompt('Name ändern:', p.name);
-        if (n && n.trim()) { p.name = n.trim(); saveData(); updateUI(); }
-    }
-
-    function deletePlayer(id) {
-        if (!confirm('Spieler löschen?')) return;
-        players = players.filter(p => p.id !== id);
-        undoStack = undoStack.filter(u => u.data.every(d => players.find(p => p.id === d.id)));
-        saveData();
-        updateUI();
-    }
-
-    function newGame() {
-        if (players.length && !confirm('Wirklich alles löschen?')) return;
-        players = [];
-        currentRound = 1;
-        undoStack = [];
-        document.getElementById('winModal').classList.remove('show');
-        saveData();
-        updateUI();
-    }
-
-    function showHistory() {
-        const tbl = document.getElementById('histTable');
-        const maxR = Math.max(...players.map(p => p.rounds.length), 0);
-        
-        if (maxR === 0) {
-            tbl.innerHTML = '<p style="text-align:center;color:#999;">Keine Runden gespielt</p>';
-        } else {
-            let html = '<table class="hist-table"><tr><th>Runde</th>';
-            players.forEach(p => html += '<th>' + p.name + '</th>');
-            html += '</tr>';
-            
-            for (let r = 0; r < maxR; r++) {
-                html += '<tr><td><strong>' + (r + 1) + '</strong></td>';
-                players.forEach(p => {
-                    const v = p.rounds[r];
-                    const c = v > 0 ? 'color:green' : (v < 0 ? 'color:red' : '');
-                    html += '<td style="' + c + '">' + (v || 0) + '</td>';
-                });
-                html += '</tr>';
-            }
-            
-            html += '<tr class="sum"><td>SUMME</td>';
-            players.forEach(p => html += '<td>' + p.total + '</td>');
-            html += '</tr></table>';
-            tbl.innerHTML = html;
-        }
-        
-        document.getElementById('histModal').classList.add('show');
-    }
-
-    function closeHistory() {
-        document.getElementById('histModal').classList.remove('show');
-    }
-
-    function closeWinner() {
-    document.getElementById('winModal').classList.remove('show');
-}
-
-function updateUI() {
-    document.getElementById('cRound').textContent = currentRound;
-    document.getElementById('undoBtn').style.display = undoStack.length ? 'inline-block' : 'none';
-    document.getElementById('histBtn').style.display = currentRound > 1 ? 'inline-block' : 'none';
-    
-    const grid = document.getElementById('playersGrid');
-    if (players.length === 0) {
-        grid.innerHTML = '<div class="empty">Füge Spieler mit ➕ hinzu</div>';
-        return;
-    }
-    
-    grid.innerHTML = players.map((p, i) => `
-        <div class="player-card ${p.total >= targetScore ? 'winner' : ''}">
-            <div class="card-header">
-                <div class="card-name" onclick="editName(${p.id})">${p.name}</div>
-                <button class="card-delete" onclick="deletePlayer(${p.id})">✕</button>
+        <div class="controls-top">
+            <div class="input-group">
+                <label for="pName" class="sr-only">Spielername</label>
+                <input type="text" id="pName" placeholder="Spielername..." maxlength="20" enterkeyhint="done" autocomplete="off">
+                <button class="btn btn-icon btn-add" id="btnAdd" aria-label="Spieler hinzufügen">➕</button>
             </div>
-            <div class="card-score">${p.total}</div>
-            <input type="number" 
-                   class="p-input card-input" 
-                   id="inp-${p.id}"
-                   placeholder="0"
-                   inputmode="numeric"
-                   enterkeyhint="done"
-                   onkeypress="if(event.key==='Enter') document.getElementById('inp-${players[i+1]?.id || players[0].id}').focus()">
+            <button class="btn btn-target" id="btnTarget" aria-label="Zielpunktzahl ändern">🎯 <span id="targetDisplay">500</span></button>
         </div>
-    `).join('');
-}
-</script>
+        
+        <main class="players-container">
+            <div class="players-grid" id="playersGrid">
+                <div class="empty-state">Füge Spieler mit ➕ hinzu</div>
+            </div>
+        </main>
+        
+        <nav class="action-bar">
+            <button class="btn btn-uno btn-save" id="btnSave">💾 Runde Speichern</button>
+            <button class="btn btn-uno btn-undo" id="btnUndo" style="display:none;" disabled>↩ Rückgängig</button>
+            <button class="btn btn-uno btn-hist" id="btnHist" style="display:none;" disabled>📊 Verlauf</button>
+            <button class="btn btn-uno btn-new" id="btnNew">🔄 Neu</button>
+        </nav>
+    </div>
+
+    <!-- History Modal -->
+    <div class="modal-overlay" id="histModal" role="dialog" aria-modal="true" aria-labelledby="histTitle">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="histTitle">📊 Rundenübersicht</div>
+                <button class="btn-close" id="btnCloseHist" aria-label="Schliessen">✕</button>
+            </div>
+            <div id="histTable" role="region" aria-live="polite"></div>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div class="modal-overlay" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <div class="modal-title" id="confirmTitle">Bestätigen</div>
+            </div>
+            <p id="confirmText"></p>
+            <div class="confirm-actions">
+                <button class="btn-secondary" id="btnCancel">Abbrechen</button>
+                <button class="btn-primary" id="btnConfirm">Bestätigen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Winner Modal -->
+    <div class="winner-modal" id="winModal" role="dialog" aria-modal="true" aria-labelledby="winTitle">
+        <div class="winner-uno">UNO!</div>
+        <div class="winner-text" id="winTitle">Gewinner!</div>
+        <div class="winner-name" id="winName"></div>
+        <button class="btn btn-uno btn-save" id="btnNewGame" style="font-size:20px;">Neues Spiel</button>
+        <button id="btnContinue" style="margin-top:15px;background:none;border:2px solid white;color:white;padding:12px 30px;border-radius:30px;font-size:16px;cursor:pointer;font-weight:600;">Weiterspielen</button>
+    </div>
+
+    <script>
+        /**
+         * UNO Punktezähler - Modular Architecture
+         * TypeScript-Ready mit JSDoc
+         */
+        
+        /**
+         * @typedef {Object} Player
+         * @property {number} id
+         * @property {string} name
+         * @property {number[]} rounds
+         * @property {number} total
+         */
+        
+        /**
+         * @typedef {Object} UndoSnapshot
+         * @property {number} round
+         * @property {Array<{id: number, pts: number, prev: number}>} data
+         */
+        
+        /**
+         * @typedef {Object} GameState
+         * @property {Player[]} players
+         * @property {number} currentRound
+         * @property {number} targetScore
+         * @property {UndoSnapshot[]} undoStack
+         */
+
+        const UNOApp = (() => {
+            'use strict';
+            
+            /** @type {GameState} */
+            const state = {
+                players: [],
+                currentRound: 1,
+                targetScore: 500,
+                undoStack: []
+            };
+            
+            // DOM Cache
+            const DOM = {
+                grid: document.getElementById('playersGrid'),
+                roundDisplay: document.getElementById('cRound'),
+                targetDisplay: document.getElementById('targetDisplay'),
+                input: document.getElementById('pName'),
+                btnAdd: document.getElementById('btnAdd'),
+                btnSave: document.getElementById('btnSave'),
+                btnUndo: document.getElementById('btnUndo'),
+                btnHist: document.getElementById('btnHist'),
+                btnNew: document.getElementById('btnNew'),
+                btnTarget: document.getElementById('btnTarget'),
+                histModal: document.getElementById('histModal'),
+                histTable: document.getElementById('histTable'),
+                btnCloseHist: document.getElementById('btnCloseHist'),
+                winModal: document.getElementById('winModal'),
+                winName: document.getElementById('winName'),
+                btnNewGame: document.getElementById('btnNewGame'),
+                btnContinue: document.getElementById('btnContinue'),
+                confirmModal: document.getElementById('confirmModal'),
+                confirmTitle: document.getElementById('confirmTitle'),
+                confirmText: document.getElementById('confirmText'),
+                btnConfirm: document.getElementById('btnConfirm'),
+                btnCancel: document.getElementById('btnCancel')
+            };
+            
+            let confirmCallback = null;
+            let hasUnsavedChanges = false;
+            
+            // XSS Protection
+            const escapeHTML = (str) => {
+                if (!str) return '';
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            };
+            
+            // Haptic Feedback
+            const vibrate = (pattern = [50]) => {
+                if (navigator.vibrate && window.matchMedia('(pointer: coarse)').matches) {
+                    navigator.vibrate(pattern);
+                }
+            };
+            
+            // LocalStorage mit Error Handling
+            const Storage = {
+                save() {
+                    try {
+                        localStorage.setItem('unoGame_v2', JSON.stringify(state));
+                    } catch (e) {
+                        console.error('Storage error:', e);
+                        // Fallback: In-Memory only
+                    }
+                },
+                
+                load() {
+                    try {
+                        const data = localStorage.getItem('unoGame_v2');
+                        if (data) {
+                            const parsed = JSON.parse(data);
+                            state.players = parsed.players || [];
+                            state.currentRound = parsed.currentRound || 1;
+                            state.targetScore = parsed.target || 500;
+                            state.undoStack = parsed.undoStack || [];
+                        }
+                    } catch (e) {
+                        console.error('Load error:', e);
+                    }
+                },
+                
+                clear() {
+                    try {
+                        localStorage.removeItem('unoGame_v2');
+                    } catch (e) {
+                        console.error('Clear error:', e);
+                    }
+                }
+            };
+            
+            // UI Updates mit View Transitions API
+            const updateUI = async () => {
+                if (document.startViewTransition) {
+                    await document.startViewTransition(() => render()).finished;
+                } else {
+                    render();
+                }
+                
+                updateControls();
+            };
+            
+            const render = () => {
+                DOM.roundDisplay.textContent = state.currentRound;
+                DOM.targetDisplay.textContent = state.targetScore;
+                
+                if (state.players.length === 0) {
+                    DOM.grid.innerHTML = '<div class="empty-state">Füge Spieler mit ➕ hinzu</div>';
+                    return;
+                }
+                
+                DOM.grid.innerHTML = state.players.map((p, index) => {
+                    const colorIdx = index % 4;
+                    const isWinner = p.total >= state.targetScore;
+                    
+                    return `
+                        <article class="player-card ${isWinner ? 'winner' : ''}" 
+                                 data-color="${colorIdx}" 
+                                 data-id="${p.id}"
+                                 ${isWinner ? 'aria-live="polite"' : ''}>
+                            <div class="card-header">
+                                <button class="card-name" 
+                                        data-action="edit" 
+                                        data-id="${p.id}"
+                                        title="Name bearbeiten">
+                                    ${escapeHTML(p.name)}
+                                </button>
+                                <button class="card-delete" 
+                                        data-action="delete" 
+                                        data-id="${p.id}"
+                                        aria-label="${escapeHTML(p.name)} löschen">✕</button>
+                            </div>
+                            <div class="card-score">${p.total}</div>
+                            <input type="number" 
+                                   class="card-input p-input" 
+                                   id="inp-${p.id}"
+                                   data-id="${p.id}"
+                                   placeholder="0"
+                                   min="0"
+                                   step="1"
+                                   inputmode="numeric"
+                                   pattern="[0-9]*"
+                                   enterkeyhint="done"
+                                   aria-label="Punkte für ${escapeHTML(p.name)}">
+                        </article>
+                    `;
+                }).join('');
+                
+                // Fokus Management: Erstes Input fokussieren wenn neue Runde
+                if (hasUnsavedChanges === false && state.players.length > 0) {
+                    const firstInput = DOM.grid.querySelector('.p-input');
+                    if (firstInput) firstInput.focus();
+                }
+            };
+            
+            const updateControls = () => {
+                DOM.btnUndo.style.display = state.undoStack.length ? 'inline-block' : 'none';
+                DOM.btnUndo.disabled = !state.undoStack.length;
+                DOM.btnHist.style.display = state.currentRound > 1 ? 'inline-block' : 'none';
+                DOM.btnHist.disabled = state.currentRound <= 1;
+                
+                // Winner Check visuell
+                const winner = state.players.find(p => p.total >= state.targetScore);
+                if (winner && !DOM.winModal.classList.contains('active')) {
+                    showWinner(winner);
+                }
+            };
+            
+            const showWinner = (player) => {
+                DOM.winName.textContent = player.name;
+                DOM.winModal.classList.add('active');
+                vibrate([100, 50, 100, 50, 300, 100, 500]);
+            };
+            
+            // Custom Confirm Dialog
+            const showConfirm = (title, text, onConfirm) => {
+                DOM.confirmTitle.textContent = title;
+                DOM.confirmText.textContent = text;
+                confirmCallback = onConfirm;
+                DOM.confirmModal.classList.add('active');
+                DOM.btnConfirm.focus();
+            };
+            
+            const hideConfirm = () => {
+                DOM.confirmModal.classList.remove('active');
+                confirmCallback = null;
+            };
+            
+            // Actions
+            const addPlayer = () => {
+                const name = DOM.input.value.trim();
+                if (!name) {
+                    vibrate([50, 50]);
+                    DOM.input.focus();
+                    return;
+                }
+                
+                if (state.players.length >= 8) {
+                    showConfirm('Maximum erreicht', 'Maximal 8 Spieler erlaubt.', null);
+                    return;
+                }
+                
+                state.players.push({
+                    id: Date.now(),
+                    name: name,
+                    rounds: [],
+                    total: 0
+                });
+                
+                DOM.input.value = '';
+                hasUnsavedChanges = true;
+                Storage.save();
+                updateUI();
+                vibrate(50);
+            };
+            
+            const deletePlayer = (id) => {
+                const player = state.players.find(p => p.id === id);
+                if (!player) return;
+                
+                showConfirm('Spieler löschen', 
+                    `Möchtest du ${escapeHTML(player.name)} wirklich löschen?`, 
+                    () => {
+                        state.players = state.players.filter(p => p.id !== id);
+                        // Cleanup undo stack von diesem Spieler
+                        state.undoStack = state.undoStack.map(u => ({
+                            ...u,
+                            data: u.data.filter(d => d.id !== id)
+                        })).filter(u => u.data.length > 0);
+                        
+                        Storage.save();
+                        updateUI();
+                        vibrate([30, 60]);
+                    }
+                );
+            };
+            
+            const editName = (id) => {
+                const player = state.players.find(p => p.id === id);
+                if (!player) return;
+                
+                // Temporär prompt nutzen, aber besser wäre inline editing
+                // Für GitHub-Version: Simples Prompt mit Fallback
+                const newName = prompt('Neuer Name:', player.name);
+                if (newName && newName.trim() && newName.trim() !== player.name) {
+                    player.name = newName.trim().substring(0, 20);
+                    Storage.save();
+                    updateUI();
+                }
+            };
+            
+            const setTarget = () => {
+                const current = state.targetScore;
+                const input = prompt('Zielpunktzahl (Standard: 500):', current);
+                if (input && !isNaN(input)) {
+                    const val = parseInt(input);
+                    if (val > 0) {
+                        state.targetScore = val;
+                        Storage.save();
+                        updateUI();
+                    }
+                }
+            };
+            
+            const saveRound = () => {
+                const inputs = document.querySelectorAll('.p-input');
+                const snapshot = [];
+                let hasValue = false;
+                let valid = true;
+                
+                inputs.forEach(inp => {
+                    const val = inp.value.trim();
+                    const pts = val === '' ? 0 : parseInt(val);
+                    
+                    if (val !== '' && (isNaN(pts) || pts < 0)) {
+                        valid = false;
+                        inp.style.borderColor = 'red';
+                        setTimeout(() => inp.style.borderColor = '', 1000);
+                    }
+                    
+                    if (val !== '') hasValue = true;
+                    
+                    const id = parseInt(inp.dataset.id);
+                    const player = state.players.find(p => p.id === id);
+                    
+                    snapshot.push({
+                        id,
+                        pts: isNaN(pts) ? 0 : pts,
+                        prev: player.total
+                    });
+                });
+                
+                if (!valid) {
+                    vibrate([100, 50, 100]);
+                    return;
+                }
+                
+                if (!hasValue) {
+                    vibrate([40, 40]);
+                    // Shake Animation auf Input
+                    DOM.grid.style.transform = 'translateX(5px)';
+                    setTimeout(() => DOM.grid.style.transform = '', 100);
+                    return;
+                }
+                
+                // Speichern
+                state.undoStack.push({
+                    round: state.currentRound,
+                    data: snapshot
+                });
+                
+                snapshot.forEach(item => {
+                    const p = state.players.find(x => x.id === item.id);
+                    if (p) {
+                        p.rounds.push(item.pts);
+                        p.total += item.pts;
+                    }
+                });
+                
+                state.currentRound++;
+                hasUnsavedChanges = false;
+                Storage.save();
+                updateUI();
+                vibrate([50, 100, 50]);
+                
+                // Check Winner
+                const winner = state.players.find(p => p.total >= state.targetScore);
+                if (winner) {
+                    setTimeout(() => showWinner(winner), 300);
+                }
+            };
+            
+            const undoRound = () => {
+                if (!state.undoStack.length) return;
+                
+                showConfirm('Runde rückgängig', 
+                    'Möchtest du die letzte Runde wirklich löschen?', 
+                    () => {
+                        const last = state.undoStack.pop();
+                        state.currentRound = last.round;
+                        
+                        last.data.forEach(item => {
+                            const p = state.players.find(x => x.id === item.id);
+                            if (p) {
+                                p.rounds.pop();
+                                p.total = item.prev;
+                            }
+                        });
+                        
+                        hasUnsavedChanges = true;
+                        Storage.save();
+                        updateUI();
+                        DOM.winModal.classList.remove('active');
+                        vibrate([60, 30]);
+                    }
+                );
+            };
+            
+            const showHistory = () => {
+                const maxR = Math.max(...state.players.map(p => p.rounds.length), 0);
+                
+                if (maxR === 0) {
+                    DOM.histTable.innerHTML = '<p style="text-align:center;color:#666;padding:20px;">Keine Runden gespielt</p>';
+                } else {
+                    let html = '<table class="hist-table"><thead><tr><th>Runde</th>';
+                    state.players.forEach(p => {
+                        html += `<th>${escapeHTML(p.name)}</th>`;
+                    });
+                    html += '</tr></thead><tbody>';
+                    
+                    for (let r = 0; r < maxR; r++) {
+                        html += `<tr><td><strong>${r + 1}</strong></td>`;
+                        state.players.forEach(p => {
+                            const v = p.rounds[r] || 0;
+                            const cls = v > 0 ? 'positive' : (v < 0 ? 'negative' : '');
+                            html += `<td class="${cls}">${v}</td>`;
+                        });
+                        html += '</tr>';
+                    }
+                    
+                    html += '<tr class="sum"><td>SUMME</td>';
+                    state.players.forEach(p => {
+                        html += `<td>${p.total}</td>`;
+                    });
+                    html += '</tr></tbody></table>';
+                    
+                    DOM.histTable.innerHTML = html;
+                }
+                
+                DOM.histModal.classList.add('active');
+            };
+            
+            const closeHistory = () => {
+                DOM.histModal.classList.remove('active');
+                // Focus zurück zum Button für Screenreader
+                DOM.btnHist.focus();
+            };
+            
+            const newGame = () => {
+                if (state.players.length === 0) return;
+                
+                showConfirm('Neues Spiel', 
+                    'Wirklich alle Spieler und Punkte löschen?', 
+                    () => {
+                        state.players = [];
+                        state.currentRound = 1;
+                        state.undoStack = [];
+                        hasUnsavedChanges = false;
+                        Storage.clear();
+                        updateUI();
+                        DOM.winModal.classList.remove('active');
+                        DOM.input.focus();
+                        vibrate([100]);
+                    }
+                );
+            };
+            
+            // Event Delegation
+            const handleGridClick = (e) => {
+                const btn = e.target.closest('button[data-action]');
+                if (!btn) return;
+                
+                const action = btn.dataset.action;
+                const id = parseInt(btn.dataset.id);
+                
+                if (action === 'delete') deletePlayer(id);
+                if (action === 'edit') editName(id);
+            };
+            
+            const handleGridKeypress = (e) => {
+                if (e.key === 'Enter' && e.target.classList.contains('p-input')) {
+                    e.preventDefault();
+                    const inputs = Array.from(document.querySelectorAll('.p-input'));
+                    const idx = inputs.indexOf(e.target);
+                    const next = inputs[idx + 1] || DOM.btnSave;
+                    next.focus();
+                    if (next.classList.contains('p-input')) next.select();
+                }
+            };
+            
+            // Global Event Listeners
+            const bindEvents = () => {
+                // Controls
+                DOM.btnAdd.addEventListener('click', addPlayer);
+                DOM.btnTarget.addEventListener('click', setTarget);
+                DOM.btnSave.addEventListener('click', saveRound);
+                DOM.btnUndo.addEventListener('click', undoRound);
+                DOM.btnHist.addEventListener('click', showHistory);
+                DOM.btnNew.addEventListener('click', newGame);
+                DOM.btnCloseHist.addEventListener('click', closeHistory);
+                DOM.btnNewGame.addEventListener('click', newGame);
+                DOM.btnContinue.addEventListener('click', () => {
+                    DOM.winModal.classList.remove('active');
+                });
+                
+                // Confirm Modal
+                DOM.btnConfirm.addEventListener('click', () => {
+                    if (confirmCallback) confirmCallback();
+                    hideConfirm();
+                });
+                DOM.btnCancel.addEventListener('click', hideConfirm);
+                
+                // Grid Delegation
+                DOM.grid.addEventListener('click', handleGridClick);
+                DOM.grid.addEventListener('keypress', handleGridKeypress);
+                
+                // Input Enter
+                DOM.input.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') addPlayer();
+                });
+                
+                // Keyboard Shortcuts
+                document.addEventListener('keydown', (e) => {
+                    // ESC schliesst Modals
+                    if (e.key === 'Escape') {
+                        if (DOM.winModal.classList.contains('active')) {
+                            DOM.winModal.classList.remove('active');
+                        } else if (DOM.histModal.classList.contains('active')) {
+                            closeHistory();
+                        } else if (DOM.confirmModal.classList.contains('active')) {
+                            hideConfirm();
+                        }
+                    }
+                    
+                    // Strg/Cmd + Z für Undo
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && state.undoStack.length) {
+                        e.preventDefault();
+                        undoRound();
+                    }
+                });
+                
+                // Before Unload Warning
+                window.addEventListener('beforeunload', (e) => {
+                    if (hasUnsavedChanges) {
+                        e.preventDefault();
+                        e.returnValue = '';
+                    }
+                });
+                
+                // Service Worker Registration
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.register('./sw.js')
+                        .then(reg => {
+                            console.log('SW registered:', reg.scope);
+                            // Check for updates
+                            reg.addEventListener('updatefound', () => {
+                                const newWorker = reg.installing;
+                                newWorker.addEventListener('statechange', () => {
+                                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                        // Update available
+                                        if (confirm('Neue Version verfügbar! Jetzt aktualisieren?')) {
+                                            window.location.reload();
+                                        }
+                                    }
+                                });
+                            });
+                        })
+                        .catch(err => console.log('SW registration failed:', err));
+                }
+            };
+            
+            // Init
+            const init = () => {
+                Storage.load();
+                bindEvents();
+                updateUI();
+                console.log('UNO Tracker initialized');
+            };
+            
+            return { init };
+        })();
+        
+        // Start
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', UNOApp.init);
+        } else {
+            UNOApp.init();
+        }
+    </script>
 </body>
 </html>
